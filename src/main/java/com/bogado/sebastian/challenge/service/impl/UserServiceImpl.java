@@ -11,34 +11,38 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.nio.charset.StandardCharsets;
+import java.sql.Timestamp;
 import java.time.LocalDateTime;
 
 
 @Service
 public class UserServiceImpl implements UserService {
-    @Value("${jwt.secret}")
-    private String secretKey;
-    private final UserRepository userRepository;
-    private final BCrypt.Hasher BCrypt;
 
-    public UserServiceImpl(UserRepository userRepository, at.favre.lib.crypto.bcrypt.BCrypt.Hasher bCrypt) {
+    private final String secretKey;
+    private final UserRepository userRepository;
+
+    public UserServiceImpl(UserRepository userRepository, @Value("${jwt.secret}") String secretKey) {
         this.userRepository = userRepository;
-        BCrypt = bCrypt;
+        this.secretKey = secretKey;
     }
 
     @Transactional(rollbackFor = Exception.class, timeout = 10)
     public UserEntity registerUser(UserEntity user) {
-        if (userRepository.findByEmail(user.getEmail()).isPresent()) {
+        var existingUser = userRepository.findByEmail(user.getEmail());
+        if (existingUser.isPresent()) {
             throw new EmailAlreadyExists();
         }
-        String token = Jwts.builder()
+        String hashedPassword = BCrypt.withDefaults()
+                .hashToString(10, user.getPassword().toCharArray()); //
+        user.setPassword(hashedPassword);
+        var token = Jwts.builder()
                 .subject(user.getEmail())
-                .issuedAt(java.sql.Timestamp.valueOf(LocalDateTime.now()))
-                .expiration(java.sql.Timestamp.valueOf(LocalDateTime.now().plusHours(1)))
-                .signWith(SignatureAlgorithm.HS256, secretKey)
+                .issuedAt(Timestamp.valueOf(LocalDateTime.now()))
+                .expiration(Timestamp.valueOf(LocalDateTime.now().plusHours(1)))
+                .signWith(SignatureAlgorithm.HS256, secretKey.getBytes(StandardCharsets.UTF_8))
                 .compact();
         user.setToken(token);
-        user.setPassword(new String(BCrypt.hash(10,user.getPassword().toCharArray())));
         user.setActive(true);
         user.setLastLogin(LocalDateTime.now());
         return userRepository.save(user);

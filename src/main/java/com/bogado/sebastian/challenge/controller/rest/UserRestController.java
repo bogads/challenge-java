@@ -5,8 +5,12 @@ import com.bogado.sebastian.challenge.controller.rest.response.CreateUserRespons
 import com.bogado.sebastian.challenge.mapper.UserMapper;
 import com.bogado.sebastian.challenge.model.entity.UserEntity;
 import com.bogado.sebastian.challenge.service.UserService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -27,6 +31,19 @@ public class UserRestController {
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
+    @Operation(
+            summary = "Registrar usuario",
+            description = "Crea un nuevo usuario a partir de los datos proporcionados en el cuerpo de la solicitud.",
+            responses = {
+                    @ApiResponse(
+                            responseCode = "201",
+                            description = "Usuario registrado exitosamente.",
+                            content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE)
+                    ),
+                    @ApiResponse(responseCode = "400", description = "Solicitud inválida. Verifica los datos ingresados."),
+                    @ApiResponse(responseCode = "500", description = "Error interno del servidor.")
+            }
+    )
     public CreateUserResponse register(@Valid @RequestBody CreateUserRequest user) {
         UserEntity persistedUser = userService.registerUser(UserMapper.fromCreateUserRequestToEntity(user));
         return UserMapper.fromEntityToCreateUserResponse(persistedUser);
